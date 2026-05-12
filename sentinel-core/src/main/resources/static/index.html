@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Sentinel | Мониторинг Фрода</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e2f; color: #fff; margin: 0; padding: 20px; }
+        h1 { color: #00d2ff; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .alert-box { background-color: #2a2a40; border-left: 5px solid #ff4757; padding: 15px; margin-bottom: 15px; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); animation: slideIn 0.5s ease-out; }
+        .alert-box.SUSPICIOUS_LOGIN { border-color: #ff4757; }
+        .time { color: #a4b0be; font-size: 0.85em; margin-bottom: 5px; }
+        .user { font-weight: bold; color: #ffeb3b; font-size: 1.1em; }
+        .msg { margin-top: 5px; }
+        @keyframes slideIn { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        #status { font-size: 0.9em; color: #2ed573; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+<h1>🛡️ Sentinel Real-Time Fraud Monitor</h1>
+<div id="status">Подключение к серверу...</div>
+
+<div id="alerts-container">
+</div>
+
+<script>
+    const alertsContainer = document.getElementById('alerts-container');
+    const statusDiv = document.getElementById('status');
+
+    // Подключаемся к нашему Spring Boot серверу по WebSocket
+    const socket = new SockJS('/ws');
+    const stompClient = Stomp.over(socket);
+
+    // Отключаем лишние логи STOMP в консоли браузера
+    stompClient.debug = null;
+
+    stompClient.connect({}, function (frame) {
+        statusDiv.innerText = "🟢 Подключено. Ожидание потока событий...";
+        statusDiv.style.color = "#2ed573";
+
+        // Подписываемся на канал алертов
+        stompClient.subscribe('/topic/alerts', function (message) {
+            const alertData = JSON.parse(message.body);
+            displayAlert(alertData);
+        });
+    }, function(error) {
+        statusDiv.innerText = "🔴 Ошибка подключения к серверу";
+        statusDiv.style.color = "#ff4757";
+    });
+
+    function displayAlert(alert) {
+        const date = new Date(alert.timestamp).toLocaleTimeString();
+
+        const div = document.createElement('div');
+        div.className = `alert-box ${alert.alertType}`;
+
+        div.innerHTML = `
+                <div class="time">[${date}] Тип угрозы: ${alert.alertType}</div>
+                <div class="user">Пользователь: ${alert.userId}</div>
+                <div class="msg">${alert.message}</div>
+            `;
+
+        // Добавляем новый алерт наверх
+        alertsContainer.prepend(div);
+
+        // Оставляем только последние 10 алертов, чтобы страница не висла
+        if(alertsContainer.children.length > 10) {
+            alertsContainer.removeChild(alertsContainer.lastChild);
+        }
+    }
+</script>
+</body>
+</html>
