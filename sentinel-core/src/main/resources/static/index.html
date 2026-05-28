@@ -15,11 +15,26 @@
         .msg { margin-top: 5px; }
         @keyframes slideIn { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         #status { font-size: 0.9em; color: #2ed573; margin-bottom: 20px; }
+        .stats-panel { background-color: #2a2a40; padding: 20px; border-radius: 4px; margin-bottom: 20px; border-top: 3px solid #00d2ff; display: none; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 15px; }
+        .stat-card { background: #1e1e2f; padding: 15px; border-radius: 4px; text-align: center; }
+        .stat-value { font-size: 24px; color: #00d2ff; font-weight: bold; margin-top: 5px; }
+        button { background: #00d2ff; color: #1e1e2f; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 4px; font-size: 14px; transition: 0.2s; }
+        button:hover { background: #00b8e6; }
+        .header-row { display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body>
 
-<h1>🛡️ Sentinel Real-Time Fraud Monitor</h1>
+<div class="header-row">
+    <h1>Real-Time Fraud Monitor</h1>
+    <button onclick="loadAnalytics()">Запросить аналитику (ClickHouse)</button>
+</div>
+
+<div id="stats-panel" class="stats-panel">
+    <h3>Сводка по всем событиям</h3>
+    <div id="stats-content">Загрузка...</div>
+</div>
 <div id="status">Подключение к серверу...</div>
 
 <div id="alerts-container">
@@ -69,6 +84,53 @@
         if(alertsContainer.children.length > 10) {
             alertsContainer.removeChild(alertsContainer.lastChild);
         }
+    }
+
+    function loadAnalytics() {
+        const panel = document.getElementById('stats-panel');
+        const content = document.getElementById('stats-content');
+
+        // Показываем панель
+        panel.style.display = 'block';
+        content.innerHTML = 'Выполняется агрегация данных в ClickHouse...';
+
+        // Делаем запрос к нашему Spring Boot контроллеру
+        fetch('/api/analytics/stats')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    content.innerHTML = `<span style="color: #ff4757">${data.error}</span>`;
+                    return;
+                }
+
+                // Формируем красивый вывод распределения по типам
+                let typesHtml = data.eventsByType.map(t =>
+                    `<div>${t.name}: <span style="color: #a4b0be">${t.value} шт.</span></div>`
+                ).join('');
+
+                // Формируем HTML
+                content.innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div>Всего событий обработано</div>
+                        <div class="stat-value">${data.totalEvents}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div>Разбивка по типам</div>
+                        <div style="margin-top: 10px; font-size: 14px;">${typesHtml}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div>Топ IP-адресов по активности</div>
+                        <div style="margin-top: 10px; font-size: 14px;">
+                            ${data.topIps.map(ip => `<div>${ip.ip} (${ip.count})</div>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            })
+            .catch(err => {
+                content.innerHTML = `<span style="color: #ff4757">Ошибка соединения с сервером</span>`;
+            });
     }
 </script>
 </body>

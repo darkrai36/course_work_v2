@@ -14,6 +14,11 @@ public class UserActivity {
     private long timestamp;
 
     public enum ActionType {
-        LOGIN, PAYMENT, LOGOUT
+        LOGIN,
+        LOGOUT,
+        PAYMENT,
+        PASSWORD_CHANGE,
+        PROFILE_UPDATE,
+        DEVICE_LINK
     }
 }
