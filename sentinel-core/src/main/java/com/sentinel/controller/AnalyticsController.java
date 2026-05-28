@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -47,5 +48,18 @@ public class AnalyticsController {
         }
 
         return stats;
+    }
+
+    @GetMapping("/user/{userId}")
+    public List<Map<String, Object>> getUserHistory(@PathVariable String userId) {
+        try {
+            // Ищем логи юзера, сортируем от новых к старым. Лимит 50, чтобы не перегрузить браузер, если логов тысячи.
+            String sql = "SELECT action_type, ip_address, timestamp " +
+                    "FROM user_activities WHERE user_id = ? ORDER BY timestamp DESC LIMIT 50";
+            return jdbcTemplate.queryForList(sql, userId);
+        } catch (Exception e) {
+            log.error("Ошибка при поиске логов пользователя {}", userId, e);
+            return List.of(); // возвращаем пустой список при ошибке
+        }
     }
 }

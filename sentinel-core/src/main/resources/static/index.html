@@ -22,6 +22,11 @@
         button { background: #00d2ff; color: #1e1e2f; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 4px; font-size: 14px; transition: 0.2s; }
         button:hover { background: #00b8e6; }
         .header-row { display: flex; justify-content: space-between; align-items: center; }
+        .search-panel { background-color: #2a2a40; padding: 20px; border-radius: 4px; margin-bottom: 20px; border-top: 3px solid #ffeb3b; }
+        input[type="text"] { background: #1e1e2f; color: #fff; border: 1px solid #444; padding: 10px; border-radius: 4px; width: 300px; margin-right: 10px; font-size: 14px; }
+        .log-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
+        .log-table th, .log-table td { text-align: left; padding: 8px; border-bottom: 1px solid #444; }
+        .log-table th { color: #a4b0be; }
     </style>
 </head>
 <body>
@@ -34,6 +39,14 @@
 <div id="stats-panel" class="stats-panel">
     <h3>Сводка по всем событиям</h3>
     <div id="stats-content">Загрузка...</div>
+</div>
+<div class="search-panel">
+    <h3>Поиск по логам конкретного юзера</h3>
+    <div>
+        <input type="text" id="searchInput" placeholder="Введите ID пользователя (напр. hacker-bruteforce)">
+        <button onclick="searchUser()" style="background: #ffeb3b; color: #1e1e2f;">Найти логи</button>
+    </div>
+    <div id="user-logs-content" style="margin-top: 15px;"></div>
 </div>
 <div id="status">Подключение к серверу...</div>
 
@@ -126,6 +139,60 @@
                         </div>
                     </div>
                 </div>
+            `;
+            })
+            .catch(err => {
+                content.innerHTML = `<span style="color: #ff4757">Ошибка соединения с сервером</span>`;
+            });
+    }
+
+    function searchUser() {
+        const userId = document.getElementById('searchInput').value.trim();
+        const content = document.getElementById('user-logs-content');
+
+        if (!userId) {
+            content.innerHTML = '<span style="color: #ff4757">Введите ID пользователя</span>';
+            return;
+        }
+
+        content.innerHTML = 'Поиск в базе данных ClickHouse...';
+
+        fetch(`/api/analytics/user/${userId}`)
+            .then(response => response.json())
+            .then(logs => {
+                if (logs.length === 0) {
+                    content.innerHTML = '<span style="color: #a4b0be">Событий для данного пользователя не найдено.</span>';
+                    return;
+                }
+
+                // Рисуем красивую табличку с логами
+                // Рисуем красивую табличку с логами
+                let rows = logs.map(log => {
+                    // Превращаем сырое Unix-время из БД в локальное время твоего компьютера
+                    const localTime = new Date(log.timestamp).toLocaleTimeString();
+                    return `
+                <tr>
+                    <td>${localTime}</td>
+                    <td style="color: #00d2ff; font-weight: bold;">${log.action_type}</td>
+                    <td>${log.ip_address}</td>
+                </tr>
+                `;
+                }).join('');
+
+                content.innerHTML = `
+                <table class="log-table">
+                    <thead>
+                        <tr>
+                            <th>Время</th>
+                            <th>Действие</th>
+                            <th>IP Адрес</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
+                <div style="margin-top: 10px; font-size: 12px; color: #a4b0be;">*Показаны последние 50 событий</div>
             `;
             })
             .catch(err => {

@@ -20,31 +20,32 @@ public class GeneratorService {
     private final Random random = new Random();
     private static final String TOPIC = "user-activities";
 
-    // Просыпаемся 10 раз в секунду (каждые 100 мс)
     @Scheduled(fixedRate = 100)
     public void generateActivity() {
-        // Генерируем пачку от 5 до 10 событий за один "тик" (итого 50-100 в сек)
         int batchSize = 5 + random.nextInt(6);
 
         for (int i = 0; i < batchSize; i++) {
-            // Расширяем диапазон вероятностей до 1000 для более тонкой настройки
-            int scenario = random.nextInt(1000);
+            int scenario = random.nextInt(10000);
 
-            if (scenario < 985) {
-                // 98.5% трафика - Обычные пользователи (создаем больше уникальных ID)
-                sendEvent("user-" + random.nextInt(10000), getRandomNormalAction(), "192.168.1." + random.nextInt(255));
-            } else if (scenario < 988) {
-                // 0.3% - Брутфорс
+            if (scenario < 9940) {
+                int normalUserId = random.nextInt(1_000_000);
+
+                String staticIp = "192.168." + (normalUserId % 255) + "." + ((normalUserId / 255) % 255);
+
+                sendEvent("user-" + normalUserId, getRandomNormalAction(), staticIp);
+
+            } else if (scenario < 9955) {
+                // 0.15% - Брутфорс
                 sendEvent("hacker-bruteforce", UserActivity.ActionType.LOGIN, "10.0.0.5");
-            } else if (scenario < 991) {
-                // 0.3% - Кардер
+            } else if (scenario < 9970) {
+                // 0.15% - Кардер
                 sendEvent("hacker-carder", UserActivity.ActionType.PAYMENT, "10.0.0.6");
-            } else if (scenario < 994) {
-                // 0.3% - Угон аккаунта (Смена пароля и сразу платеж)
+            } else if (scenario < 9980) {
+                // 0.1% - Угон аккаунта
                 sendEvent("hacker-takeover", UserActivity.ActionType.PASSWORD_CHANGE, "10.0.0.7");
                 sendEvent("hacker-takeover", UserActivity.ActionType.PAYMENT, "10.0.0.7");
             } else {
-                // 0.6% - Распределенная атака
+                // 0.2% - Распределенная атака
                 sendEvent("hacker-distributed", UserActivity.ActionType.LOGIN, "172.16." + random.nextInt(255) + "." + random.nextInt(255));
             }
         }
@@ -61,11 +62,11 @@ public class GeneratorService {
     }
 
     private UserActivity.ActionType getRandomNormalAction() {
-        // Обычные пользователи чаще логинятся и выходят, реже платят
-        int r = random.nextInt(10);
-        if (r < 4) return UserActivity.ActionType.LOGIN;
-        if (r < 7) return UserActivity.ActionType.LOGOUT;
-        if (r < 9) return UserActivity.ActionType.PROFILE_UPDATE;
+        int r = random.nextInt(100);
+        // Обычные пользователи просто заходят (45%), выходят (45%) или иногда делают покупки (10%).
+        // Мы убрали PROFILE_UPDATE, чтобы они случайно не триггерили логику "Угона аккаунта".
+        if (r < 45) return UserActivity.ActionType.LOGIN;
+        if (r < 90) return UserActivity.ActionType.LOGOUT;
         return UserActivity.ActionType.PAYMENT;
     }
 }
